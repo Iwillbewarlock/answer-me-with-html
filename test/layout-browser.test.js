@@ -575,9 +575,16 @@ test('e2e: printing restores the plain grid with complete panels, and screen lay
 // A cell of two or more words shown one word per line is the defect: a table panel needs the width its columns read well at.
 const STACKED_CELLS = `[...document.querySelectorAll('.am-md td')].filter((td) => {
   const words = td.textContent.trim().split(/\\s+/).length;
-  const range = document.createRange();
-  range.selectNodeContents(td);
-  const lines = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top))).size;
+  // Lines of text only: a box in the cell (the status badge is an inline flex box) starts above the text on its line,
+  // and a glyph from a fallback font (the badge icon) may sit a pixel or two off the text beside it.
+  const tops = [];
+  const walker = document.createTreeWalker(td, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    for (const r of range.getClientRects()) if (r.width > 0) tops.push(Math.round(r.top));
+  }
+  const lines = tops.sort((a, b) => a - b).filter((top, i) => i === 0 || top - tops[i - 1] > 4).length;
   return words >= 2 && lines >= words;
 }).map((td) => td.textContent.trim())`;
 
